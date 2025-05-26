@@ -1,71 +1,83 @@
 package br.org.generation.lojagames.service;
 
-import java.nio.charset.Charset;
 import java.util.List;
 import java.util.Optional;
 
-import org.apache.commons.codec.binary.Base64;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import br.org.generation.lojagames.model.Usuario;
 import br.org.generation.lojagames.model.UsuarioLogin;
 import br.org.generation.lojagames.repository.UsuarioRepository;
+import br.org.generation.lojagames.security.JwtService;
 
 @Service
 public class UsuarioService {
-	
+
 	@Autowired
 	private UsuarioRepository usuarioRepository;
-	
-	public List<Usuario> listarUsuarios(){
-		return usuarioRepository.findAll();
-	}
-	
-	public Optional<Usuario> cadastrarUsuario(Usuario usuario) {
-		if (usuarioRepository.findByUsuario(usuario.getUsuario()).isPresent()) {
-			return Optional.empty();
-		}
-		
-		// Instancia um objeto da Classe BCryptPasswordEncoder para criptografar a senha
+
+	@Autowired
+	private JwtService jwtService;
+
+	@Autowired
+	private AuthenticationManager authenticationManager;
+
+	private String criptografarSenha(String senha) {
 		BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
-		
-		// Cria a variável senhaEncoder que receberá a senha criptografada
-		String senhaEncoder = encoder.encode(usuario.getSenha());
-		
-		// Atualiza a senha do objeto usuário (enviado via Postman) com a senha criptografada
-		usuario.setSenha(senhaEncoder);
-		
-		// Retorna para a Classe UsuarioController o objeto Salvo no Banco de Dados
-		return Optional.of(usuarioRepository.save(usuario));
-			
+		return encoder.encode(senha);
 	}
 
-	public Optional<UsuarioLogin> loginUsuario(Optional<UsuarioLogin> usuarioLogin){
+	private String gerarToken(String usuario) {
+		return "Bearer " + jwtService.generateToken(usuario);
+	}
+
+	public Optional<Usuario> cadastrar(Usuario usuario) {
+		if (usuarioRepository.findByUsuario(usuario.getUsuario()).isPresent())
+			return Optional.empty();
+
+		usuario.setSenha(criptografarSenha(usuario.getSenha()));
+		return Optional.of(usuarioRepository.save(usuario));
+	}
+
+	public Optional<Usuario> atualizar(Usuario usuario) {
+		if (usuarioRepository.findById(usuario.getId()).isPresent()) {
+			Optional<Usuario> buscaUsuario = usuarioRepository.findByUsuario(usuario.getUsuario());
+
+			if ((buscaUsuario.isPresent()) && (buscaUsuario.get().getId() != usuario.getId()))
+				throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Usuário já existe!", null);
+
+			usuario.setSenha(criptografarSenha(usuario.getSenha()));
+			return Optional.ofNullable(usuarioRepository.save(usuario));
+		}
 		
-		BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
-		
-		Optional<Usuario> usuario = usuarioRepository
-				.findByUsuario(usuarioLogin.get().getUsuario());
-		
-		if (usuario.isPresent()) {
-			if (encoder.matches(usuarioLogin.get().getSenha(), usuario.get().getSenha())) {
-				String auth = usuarioLogin.get().getUsuario() + ":" + usuarioLogin.get().getSenha();
-				
-				byte[] encodedAuth = Base64.encodeBase64(auth.getBytes(Charset.forName("US-ASCII")));
-				
-				String authHeader = "Basic " + new String(encodedAuth);
-				
+		return Optional.empty();
+	}
+
+	public Optional<UsuarioLogin> login(Optional<UsuarioLogin> usuarioLogin) {
+		var credenciais = new UsernamePasswordAuthenticationToken(usuarioLogin.get().getUsuario(),
+				usuarioLogin.get().getSenha());
+
+		Authentication authentication = authenticationManager.authenticate(credenciais);
+
+		if (authentication.isAuthenticated()) {
+			Optional<Usuario> usuario = usuarioRepository.findByUsuario(usuarioLogin.get().getUsuario());
+
+			if (usuario.isPresent()) {
 				usuarioLogin.get().setId(usuario.get().getId());
 				usuarioLogin.get().setNome(usuario.get().getNome());
-				usuarioLogin.get().setSenha(usuario.get().getSenha());
-				usuarioLogin.get().setToken(authHeader);
-				
+				usuarioLogin.get().setToken(gerarToken(usuarioLogin.get().getUsuario()));
+				usuarioLogin.get().setSenha("");
+
 				return usuarioLogin;
 			}
 		}
-		
 		return Optional.empty();
 	}
 }

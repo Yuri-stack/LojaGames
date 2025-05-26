@@ -8,38 +8,37 @@ import org.springframework.security.core.userdetails.UserDetails;
 
 import br.org.generation.lojagames.model.Usuario;
 
-/* Implementa a interface UserDetails, que descreve o usuário para o Spring Security,
- * ou seja, detalha as caracteríticas e direitos do usuário.*/
 public class UserDetailsImpl implements UserDetails {
-	
+
 	private static final long serialVersionUID = 1L;
 
-	private String userName;
+	private String username;
 	private String password;
 	private List<GrantedAuthority> authorities;
 
-	// Método construtor com parâmetros
-	public UserDetailsImpl(Usuario usuario) {
-		this.userName = usuario.getUsuario();
-		this.password = usuario.getSenha();
+	public UserDetailsImpl(Usuario user) {
+		this.username = user.getUsuario();
+		this.password = user.getSenha();
 	}
-	
-	// Método construtor sem parâmetros
+
 	public UserDetailsImpl() {	}
-	
+
 	@Override
 	public Collection<? extends GrantedAuthority> getAuthorities() {
-		return authorities;
+
+		return authorities; 
 	}
 
 	@Override
 	public String getPassword() {
+
 		return password;
 	}
 
 	@Override
 	public String getUsername() {
-		return userName;
+
+		return username;
 	}
 
 	@Override

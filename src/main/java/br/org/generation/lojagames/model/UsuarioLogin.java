@@ -1,10 +1,5 @@
 package br.org.generation.lojagames.model;
 
-/*
- * Serve como molde para fazer o login, enviando os dados para 
- * a Security fazer o Login (Autenticação)
- * */
-
 public class UsuarioLogin {
 	
 	private long id;

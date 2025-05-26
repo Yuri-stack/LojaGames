@@ -3,35 +3,31 @@ package br.org.generation.lojagames.security;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import br.org.generation.lojagames.model.Usuario;
 import br.org.generation.lojagames.repository.UsuarioRepository;
 
-/*	Implementa a interface UserDetails, sendo responsável por recuperar os dados
- *  do usuário no Banco de Dados pelo usuário e converter em um objeto da Classe 
- *  UserDetailsImpl */
-
-@Service	// Indica que é uma Service / Serviço
+@Service
 public class UserDetailsServiceImpl implements UserDetailsService {
 	
 	@Autowired
-	private UsuarioRepository userRepository;
+	private UsuarioRepository usuarioRepository;
 
-	/* Obtem os dados de um usuário com um determinado nome de usuário */
-	
 	@Override
-	public UserDetails loadUserByUsername(String userName) throws UsernameNotFoundException {
-		Optional<Usuario> usuario = userRepository.findByUsuario(userName);
-		
-		// Se o Usuário informado não existir, lnaça uma Exception 
-		usuario.orElseThrow(() -> new UsernameNotFoundException(userName + " not found."));
-		
-		/* Retorna um objeto do tipo UserDetailsImpl(com caracteristicas e direitos) 
-		 * criado com os dados recuperados do BD */ 
-		return usuario.map(UserDetailsImpl::new).get();
+	public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+
+		Optional<Usuario> usuario = usuarioRepository.findByUsuario(username);
+
+		if (usuario.isPresent())
+			return new UserDetailsImpl(usuario.get());
+		else
+			throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Erro ao Autenticar o Usuário");
+			
 	}
 }
